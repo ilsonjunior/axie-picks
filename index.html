@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axie Pick and Bans</title>
+    <link rel="icon" href="SPG-FROG.png" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: auto;
+            padding: 0;
+            background: linear-gradient(135deg, #4e2a84, #32d748); /* Degradê entre roxo e verde */
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        #mainContainer {
+            /* width: 80%; Ajusta a largura do container principal */
+            max-width: 1200px; /* Limita a largura máxima do container */
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Garante que as seções fiquem centralizadas */
+            gap: 20px;
+        }
+
+        .section {
+            padding: 15px;
+            background-color: rgba(36, 28, 61, 0.8); /* Fundo com opacidade */
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 95%;
+            max-width: 80%; /* Ajusta a largura para não ultrapassar o container */
+            box-sizing: content-box;
+            align-items: center;
+        }
+
+        .image-box {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 10px;
+            width: 100%;
+            background-color: rgba(72, 43, 135, 0.6); /* Roxo suave */
+            border-radius: 10px;
+            box-sizing: border-box;
+            align-items: center;
+        }
+
+        .image-container {
+            position: relative;
+            width: calc(100% / 7 - 10px);
+            margin-bottom: 10px;
+            overflow: hidden;
+            border-radius: 10px;
+            box-sizing: border-box;
+        }
+
+        .image-box img {
+            width: 95%;
+            height: 95%;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: transform 0.3s, background-color 0.3s; /* Adicionando transição para o fundo */
+        }
+
+        .image-box img.clicked {
+            background-color: red; /* Fundo vermelho quando clicado */
+            transform: scale(1.1);
+            border-color: #ff4081; /* Efeito ao clicar (cor vibrante) */
+        }
+
+        .delete-button {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #ff4081; /* Cor do botão de deletar */
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+
+        .delete-button:hover {
+            background-color: #f50057; /* Efeito de hover */
+        }
+
+        button {
+            background-color: #3db52d; /* Verde vibrante */
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #28a745; /* Efeito de hover para os botões */
+        }
+
+        button:active {
+            background-color: #1c7a3a;
+        }
+
+        h2[contenteditable="true"]:empty:before {
+            content: attr(placeholder);
+            color: gray;
+        }
+
+        h2[contenteditable="true"] {
+            outline: none;
+            border: none;
+            font-size: 20px;
+            color: #ffeb3b;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #fff;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 200px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus {
+            border-color: #ffeb3b; /* Destacar o campo de input com a cor amarela */
+        }
+
+    </style>
+</head>
+<body>
+    <div id="mainContainer"></div>
+    
+    <button onclick="adicionarNovaSecao()">ADD</button>
+
+    <script>
+        let sectionCount = 0; // Variável global para manter o controle do número de seções
+
+        // Carregar as seções do localStorage ao carregar a página
+        window.onload = function() {
+            const savedSections = JSON.parse(localStorage.getItem('sections')) || [];
+            savedSections.forEach((section) => {
+                sectionCount++;
+                adicionarNovaSecao(section.title, section.images, sectionCount);
+            });
+        };
+
+        // Função para adicionar uma nova seção
+        function adicionarNovaSecao(title = 'Guild', images = []) {
+            const container = document.getElementById('mainContainer');
+            sectionCount++; // Incrementa a contagem das seções
+            const novaSecao = document.createElement('div');
+            novaSecao.classList.add('section');
+            novaSecao.id = 'section' + sectionCount;
+
+            novaSecao.innerHTML = `
+                <h2 id="meuTitulo${sectionCount}" contenteditable="true">${title}</h2>
+                <input type="text" id="imageIds${sectionCount}" placeholder="list of ids separated by commas">
+                <button onclick="mostrarImagens(${sectionCount})">Show</button>
+                <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
+                <div class="image-box" id="imageContainer${sectionCount}"></div>
+                <button onclick="moverParaCima(${sectionCount})">&lt;</button>
+                <button onclick="moverParaBaixo(${sectionCount})">&gt;</button>
+                <button onclick="minimizarSecao(${sectionCount})">_</button>
+                <button onclick="apagarSecao(${sectionCount})">X</button>
+            `;
+
+            container.appendChild(novaSecao);
+
+            // Adicionar as imagens já salvas, se existirem
+            const imageContainer = document.getElementById('imageContainer' + sectionCount);
+            images.forEach((imageUrl, index) => {
+                const imageWrapper = document.createElement('div');
+                imageWrapper.classList.add('image-container');
+                
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = `Imagem ${index + 1}`;
+                img.onclick = function() {
+                    this.classList.toggle('clicked'); // Alterna a classe para mudar o fundo da imagem
+                };
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.innerText = 'X';
+                deleteButton.classList.add('delete-button');
+                deleteButton.onclick = function() {
+                    imageContainer.removeChild(imageWrapper);
+                    salvarSecoes();  // Salva as alterações no localStorage após deletar
+                };
+                
+                imageWrapper.appendChild(img);
+                imageWrapper.appendChild(deleteButton);
+                imageContainer.appendChild(imageWrapper);
+            });
+        }
+
+        // Função para apagar a seção
+        function apagarSecao(sectionNumber) {
+            const secao = document.getElementById('section' + sectionNumber);
+            secao.remove();  // Remove a seção da interface
+            salvarSecoes();  // Salva as alterações no localStorage após apagar
+        }
+
+        // Função para mostrar as imagens
+        function mostrarImagens(sectionNumber) {
+            const inputField = document.getElementById('imageIds' + sectionNumber);
+            const ids = inputField.value.split(',');
+            const container = document.getElementById('imageContainer' + sectionNumber);
+            
+            ids.forEach(id => {
+                const trimmedId = id.trim();
+                if (!trimmedId) return;
+                
+                const imgUrl = `https://axiecdn.axieinfinity.com/axies/${trimmedId}/axie/axie-full-transparent.png`;
+                
+                const imageWrapper = document.createElement('div');
+                imageWrapper.classList.add('image-container');
+                
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.alt = `Imagem ${trimmedId}`;
+                img.onclick = function() {
+                    this.classList.toggle('clicked'); // Alterando para a classe 'clicked' para mudar o fundo
+                };
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.innerText = 'X';
+                deleteButton.classList.add('delete-button');
+                deleteButton.onclick = function() {
+                    container.removeChild(imageWrapper);
+                    salvarSecoes();  // Salva as alterações no localStorage após deletar
+                };
+                
+                imageWrapper.appendChild(img);
+                imageWrapper.appendChild(deleteButton);
+                container.appendChild(imageWrapper);
+            });
+
+            inputField.value = '';
+            salvarSecoes();  // Salva as alterações no localStorage
+        }
+
+        // Função para apagar todas as imagens
+        function apagarTodasImagens(sectionNumber) {
+            document.getElementById('imageContainer' + sectionNumber).innerHTML = '';
+            salvarSecoes();  // Salva as alterações no localStorage
+        }
+
+        // Função para mover a seção para cima
+        function moverParaCima(sectionNumber) {
+            const secao = document.getElementById('section' + sectionNumber);
+            const prevSecao = secao.previousElementSibling;
+            
+            if (prevSecao) {
+                secao.parentNode.insertBefore(secao, prevSecao);
+                salvarSecoes();  // Salva as alterações no localStorage
+            }
+        }
+
+        // Função para mover a seção para baixo
+        function moverParaBaixo(sectionNumber) {
+            const secao = document.getElementById('section' + sectionNumber);
+            const nextSecao = secao.nextElementSibling;
+            
+            if (nextSecao) {
+                secao.parentNode.insertBefore(nextSecao, secao);
+                salvarSecoes();  // Salva as alterações no localStorage
+            }
+        }
+
+        // Função para minimizar a caixa de imagens
+        function minimizarSecao(sectionNumber) {
+            const secao = document.getElementById('section' + sectionNumber);
+            const imageBox = secao.querySelector('.image-box'); // Seleciona a caixa de imagens dentro da seção
+            
+            if (imageBox.style.display === 'none') {
+                imageBox.style.display = 'flex'; // Mostra a caixa de imagens
+            } else {
+                imageBox.style.display = 'none'; // Oculta a caixa de imagens
+            }
+            salvarSecoes();  // Salva as alterações no localStorage
+        }
+
+        // Função para salvar as seções no localStorage
+        function salvarSecoes() {
+            const sections = [];
+            const allSections = document.querySelectorAll('.section');
+            
+            allSections.forEach((section) => {
+                const sectionData = {
+                    title: section.querySelector('h2').innerText,
+                    images: Array.from(section.querySelectorAll('.image-box img')).map(img => img.src),
+                };
+                sections.push(sectionData);
+            });
+            
+            localStorage.setItem('sections', JSON.stringify(sections));
+        }
+    </script>
+</body>
+</html>
