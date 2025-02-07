@@ -23,7 +23,7 @@
 
         #mainContainer {
             max-width: 1200px; /* Limita a largura máxima do container */
-            margin-top: 10px;
+            margin-top: 5px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -31,7 +31,7 @@
         }
 
         .section {
-            padding: 15px;
+            padding: 5px;
             background-color: rgba(36, 28, 61, 0.8); /* Fundo com opacidade */
             border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -46,7 +46,7 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 10px;
-            margin: 20px 0;
+            margin: 10px 0;
             padding: 10px;
             width: 100%;
             background-color: rgba(72, 43, 135, 0.6);
@@ -246,6 +246,7 @@
                 <button onclick="mostrarImagens(${sectionCount})">Show</button>
                 <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
                 <div class="image-box" id="imageContainer${sectionCount}"></div>
+                <div id="imageIdsDisplay${sectionCount}" style="margin-top: 10px; color: white;"></div>
                 <button onclick="moverParaCima(${sectionCount})">&lt;</button>
                 <button onclick="moverParaBaixo(${sectionCount})">&gt;</button>
                 <button onclick="minimizarSecao(${sectionCount})">_</button>
@@ -289,6 +290,7 @@
                 deleteButton.classList.add('delete-button');
                 deleteButton.onclick = function() {
                     imageContainer.removeChild(imageWrapper);
+                    atualizarIdsDisplay(sectionNumber);
                     salvarSecoes();
                 };
                 
@@ -297,6 +299,7 @@
                 imageContainer.appendChild(imageWrapper);
             });
 
+            atualizarIdsDisplay(sectionCount);
 
             sectionCount++; // Incrementa o contador de seções
             salvarSecoes();
@@ -328,6 +331,7 @@
                 deleteButton.classList.add('delete-button');
                 deleteButton.onclick = function() {
                     container.removeChild(imageWrapper);
+                    atualizarIdsDisplay(sectionNumber);
                 };
                 
                 imageWrapper.appendChild(img);
@@ -336,12 +340,27 @@
             });
 
             inputField.value = '';
+            atualizarIdsDisplay(sectionNumber);atualizarIdsDisplay(sectionNumber);
             salvarSecoes();
         }
 
         function apagarTodasImagens(sectionNumber) {
             document.getElementById('imageContainer' + sectionNumber).innerHTML = '';
+            atualizarIdsDisplay(sectionNumber);
             salvarSecoes();
+        }
+
+        function atualizarIdsDisplay(sectionNumber) {
+            const container = document.getElementById('imageContainer' + sectionNumber);
+            const images = container.querySelectorAll('img');
+            const ids = Array.from(images).map(img => {
+                const src = img.src;
+                const idMatch = src.match(/axies\/(\d+)\/axie/);
+                return idMatch ? idMatch[1] : null;
+            }).filter(id => id !== null);
+
+            const idsDisplay = document.getElementById('imageIdsDisplay' + sectionNumber);
+            idsDisplay.innerText = `IDs: ${ids.join(', ')}`;
         }
 
         function moverParaCima(sectionNumber) {
