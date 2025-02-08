@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axie Pick and Bans</title>
+    <title>Axie Pick and Bansss</title>
     <link rel="icon" href="SPG-FROG.png" type="image/x-icon">
     <style>
         body {
@@ -22,22 +22,21 @@
         }
 
         #mainContainer {
-            /* width: 80%; Ajusta a largura do container principal */
             max-width: 1200px; /* Limita a largura máxima do container */
-            margin-top: 10px;
+            margin-top: 5px;
             display: flex;
             flex-direction: column;
-            align-items: center; /* Garante que as seções fiquem centralizadas */
+            align-items: center;
             gap: 20px;
         }
 
         .section {
-            padding: 15px;
+            padding: 5px;
             background-color: rgba(36, 28, 61, 0.8); /* Fundo com opacidade */
             border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             width: 95%;
-            max-width: 80%; /* Ajusta a largura para não ultrapassar o container */
+            max-width: 80%;
             box-sizing: content-box;
             align-items: center;
         }
@@ -47,10 +46,10 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 10px;
-            margin: 20px 0;
+            margin: 10px 0;
             padding: 10px;
             width: 100%;
-            background-color: rgba(72, 43, 135, 0.6); /* Roxo suave */
+            background-color: rgba(72, 43, 135, 0.6);
             border-radius: 10px;
             box-sizing: border-box;
             align-items: center;
@@ -71,20 +70,26 @@
             border-radius: 10px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
-            transition: transform 0.3s, background-color 0.3s; /* Adicionando transição para o fundo */
+            transition: transform 0.3s, background-color 0.3s;
         }
 
         .image-box img.clicked {
-            background-color: red; /* Fundo vermelho quando clicado */
+            background-color: red;
             transform: scale(1.1);
-            border-color: #ff4081; /* Efeito ao clicar (cor vibrante) */
+            border-color: #ff4081;
+        }
+        
+        .image-box img.green {
+            background-color: rgb(146, 223, 107);
+            transform: scale(1.1);
+            border-color: greenyellow;
         }
 
         .delete-button {
             position: absolute;
             top: 2px;
             right: 2px;
-            background-color: #ff4081; /* Cor do botão de deletar */
+            background-color: #ff4081;
             color: white;
             border: none;
             cursor: pointer;
@@ -95,11 +100,11 @@
         }
 
         .delete-button:hover {
-            background-color: #f50057; /* Efeito de hover */
+            background-color: #f50057;
         }
 
         button {
-            background-color: #3db52d; /* Verde vibrante */
+            background-color: #3db52d;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -111,7 +116,7 @@
         }
 
         button:hover {
-            background-color: #28a745; /* Efeito de hover para os botões */
+            background-color: #28a745;
         }
 
         button:active {
@@ -143,35 +148,97 @@
         }
 
         input[type="text"]:focus {
-            border-color: #ffeb3b; /* Destacar o campo de input com a cor amarela */
+            border-color: #ffeb3b;
         }
 
     </style>
+
 </head>
 <body>
+    
     <div id="mainContainer"></div>
     
     <button onclick="adicionarNovaSecao()">ADD</button>
 
-    <script>
-        let sectionCount = 0; // Variável global para manter o controle do número de seções
+    <script type="module"> 
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, push as firebasePush, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Carregar as seções do localStorage ao carregar a página
-        window.onload = function() {
-            const savedSections = JSON.parse(localStorage.getItem('sections')) || [];
-            savedSections.forEach((section) => {
-                sectionCount++;
-                adicionarNovaSecao(section.title, section.images, sectionCount);
-            });
+        const firebaseConfig = {
+            apiKey: "AIzaSyAbQhL5c8OiV4mnyxtKCxJNlUeeVUXnl6E",
+            authDomain: "axie-picks.firebaseapp.com",
+            databaseURL: "https://axie-picks-default-rtdb.firebaseio.com",
+            projectId: "axie-picks",
+            storageBucket: "axie-picks.firebasestorage.app",
+            messagingSenderId: "658160083269",
+            appId: "1:658160083269:web:6e64583b9996fa6b221e2c"
         };
 
-        // Função para adicionar uma nova seção
-        function adicionarNovaSecao(title = 'Guild', images = []) {
+        window.app = initializeApp(firebaseConfig);
+        window.db = getDatabase(app);
+        window.sectionsRef = ref(db, "sections");
+
+        onValue(sectionsRef, (snapshot) => {
+            const data = snapshot.val();
+            document.getElementById("mainContainer").innerHTML = "";
+            window.sectionCount = 0;
+            for (let key in data) {
+                window.sectionCount++;
+                adicionarNovaSecao(data[key].title, data[key].images, window.sectionCount, key);
+            }
+        });
+
+        window.salvarSecoes = function() {
+            const sections = {};
+            const allSections = document.querySelectorAll('.section');
+            
+            allSections.forEach((section) => {
+                const key = section.dataset.key || firebasePush(ref(db, "sections")).key; // Gera chave única
+                sections[key] = {
+                    title: section.querySelector('h2').innerText,
+                    images: Array.from(section.querySelectorAll('.image-box img')).map(img => ({
+                        src: img.src,
+                        clicked: img.classList.contains('clicked'), // Salva o estado de "clicked"
+                        green: img.classList.contains('green') // Salva o estado de "green"
+                    }))
+                };
+                section.dataset.key = key; // Armazena a chave para futuras atualizações
+            });
+
+            Object.keys(sections).forEach(key => {
+                set(ref(db, "sections/" + key), sections[key]);
+            });
+        }
+
+        window.apagarSecao = function(sectionNumber) {
+        const secao = document.getElementById('section' + sectionNumber);
+        const key = secao.dataset.key; // Obtém a chave da seção no Firebase
+
+        if (key) {
+            // Remove a seção do Firebase
+            const secaoRef = ref(db, `sections/${key}`);
+            remove(secaoRef).then(() => {
+                console.log("Seção removida do Firebase com sucesso!");
+            }).catch((error) => {
+                console.error("Erro ao remover a seção do Firebase:", error);
+            });
+        }
+
+        secao.remove(); // Remove a seção do DOM
+    }
+
+    </script>
+
+    <script>
+
+       let sectionCount = 0;
+
+        function adicionarNovaSecao(title = 'Guild', images = [], sectionNumber, key = null) {
             const container = document.getElementById('mainContainer');
-            sectionCount++; // Incrementa a contagem das seções
             const novaSecao = document.createElement('div');
             novaSecao.classList.add('section');
             novaSecao.id = 'section' + sectionCount;
+            if (key) novaSecao.dataset.key = key;
 
             novaSecao.innerHTML = `
                 <h2 id="meuTitulo${sectionCount}" contenteditable="true">${title}</h2>
@@ -179,6 +246,7 @@
                 <button onclick="mostrarImagens(${sectionCount})">Show</button>
                 <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
                 <div class="image-box" id="imageContainer${sectionCount}"></div>
+                <div id="imageIdsDisplay${sectionCount}" style="margin-top: 10px; color: white;"></div>
                 <button onclick="moverParaCima(${sectionCount})">&lt;</button>
                 <button onclick="moverParaBaixo(${sectionCount})">&gt;</button>
                 <button onclick="minimizarSecao(${sectionCount})">_</button>
@@ -187,17 +255,34 @@
 
             container.appendChild(novaSecao);
 
-            // Adicionar as imagens já salvas, se existirem
+            // Adiciona o evento de escuta para o título
+            const titulo = document.getElementById(`meuTitulo${sectionCount}`);
+            titulo.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Evita a quebra de linha
+                    const novoTitulo = titulo.innerText.trim(); // Obtém o novo título
+                    titulo.innerText = novoTitulo; // Atualiza o título
+                    salvarSecoes(); // Salva as seções quando "Enter" é pressionado
+                }
+            });
+
             const imageContainer = document.getElementById('imageContainer' + sectionCount);
-            images.forEach((imageUrl, index) => {
+            images.forEach((image) => {
                 const imageWrapper = document.createElement('div');
                 imageWrapper.classList.add('image-container');
                 
                 const img = document.createElement('img');
-                img.src = imageUrl;
-                img.alt = `Imagem ${index + 1}`;
+                img.src = image.src;
+                if (image.clicked) img.classList.add('clicked'); // Restaura o estado de "clicked"
+                if (image.green) img.classList.add('green'); // Restaura o estado de "green"
                 img.onclick = function() {
-                    this.classList.toggle('clicked'); // Alterna a classe para mudar o fundo da imagem
+                    this.classList.toggle('clicked');
+                    salvarSecoes(); // Salva o estado da imagem
+                };
+                img.oncontextmenu = function(event) {
+                    event.preventDefault(); // Evita o menu de contexto padrão
+                    this.classList.toggle('green');
+                    salvarSecoes(); // Salva o estado da imagem
                 };
                 
                 const deleteButton = document.createElement('button');
@@ -205,23 +290,21 @@
                 deleteButton.classList.add('delete-button');
                 deleteButton.onclick = function() {
                     imageContainer.removeChild(imageWrapper);
-                    salvarSecoes();  // Salva as alterações no localStorage após deletar
+                    salvarSecoes();
+                    atualizarIdsDisplay(sectionNumber);
                 };
                 
                 imageWrapper.appendChild(img);
                 imageWrapper.appendChild(deleteButton);
                 imageContainer.appendChild(imageWrapper);
             });
+
+            atualizarIdsDisplay(sectionCount);
+
+            sectionCount++; // Incrementa o contador de seções
+            salvarSecoes();
         }
 
-        // Função para apagar a seção
-        function apagarSecao(sectionNumber) {
-            const secao = document.getElementById('section' + sectionNumber);
-            secao.remove();  // Remove a seção da interface
-            salvarSecoes();  // Salva as alterações no localStorage após apagar
-        }
-
-        // Função para mostrar as imagens
         function mostrarImagens(sectionNumber) {
             const inputField = document.getElementById('imageIds' + sectionNumber);
             const ids = inputField.value.split(',');
@@ -240,7 +323,7 @@
                 img.src = imgUrl;
                 img.alt = `Imagem ${trimmedId}`;
                 img.onclick = function() {
-                    this.classList.toggle('clicked'); // Alterando para a classe 'clicked' para mudar o fundo
+                    this.classList.toggle('clicked');
                 };
                 
                 const deleteButton = document.createElement('button');
@@ -248,7 +331,7 @@
                 deleteButton.classList.add('delete-button');
                 deleteButton.onclick = function() {
                     container.removeChild(imageWrapper);
-                    salvarSecoes();  // Salva as alterações no localStorage após deletar
+                    atualizarIdsDisplay(sectionNumber);
                 };
                 
                 imageWrapper.appendChild(img);
@@ -257,65 +340,61 @@
             });
 
             inputField.value = '';
-            salvarSecoes();  // Salva as alterações no localStorage
+            atualizarIdsDisplay(sectionNumber);atualizarIdsDisplay(sectionNumber);
+            salvarSecoes();
         }
 
-        // Função para apagar todas as imagens
         function apagarTodasImagens(sectionNumber) {
             document.getElementById('imageContainer' + sectionNumber).innerHTML = '';
-            salvarSecoes();  // Salva as alterações no localStorage
+            atualizarIdsDisplay(sectionNumber);
+            salvarSecoes();
         }
 
-        // Função para mover a seção para cima
+        function atualizarIdsDisplay(sectionNumber) {
+            const container = document.getElementById('imageContainer' + sectionNumber);
+            const images = container.querySelectorAll('img');
+            const ids = Array.from(images).map(img => {
+                const src = img.src;
+                const idMatch = src.match(/axies\/(\d+)\/axie/);
+                return idMatch ? idMatch[1] : null;
+            }).filter(id => id !== null);
+
+            const idsDisplay = document.getElementById('imageIdsDisplay' + sectionNumber);
+            idsDisplay.innerText = `IDs: ${ids.join(', ')}`;
+        }
+
         function moverParaCima(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
             const prevSecao = secao.previousElementSibling;
             
             if (prevSecao) {
                 secao.parentNode.insertBefore(secao, prevSecao);
-                salvarSecoes();  // Salva as alterações no localStorage
+                salvarSecoes();
             }
         }
 
-        // Função para mover a seção para baixo
         function moverParaBaixo(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
             const nextSecao = secao.nextElementSibling;
             
             if (nextSecao) {
                 secao.parentNode.insertBefore(nextSecao, secao);
-                salvarSecoes();  // Salva as alterações no localStorage
+                salvarSecoes();
             }
         }
 
-        // Função para minimizar a caixa de imagens
         function minimizarSecao(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
-            const imageBox = secao.querySelector('.image-box'); // Seleciona a caixa de imagens dentro da seção
+            const imageBox = secao.querySelector('.image-box');
             
             if (imageBox.style.display === 'none') {
-                imageBox.style.display = 'flex'; // Mostra a caixa de imagens
+                imageBox.style.display = 'flex';
             } else {
-                imageBox.style.display = 'none'; // Oculta a caixa de imagens
+                imageBox.style.display = 'none';
             }
-            salvarSecoes();  // Salva as alterações no localStorage
+            salvarSecoes();
         }
 
-        // Função para salvar as seções no localStorage
-        function salvarSecoes() {
-            const sections = [];
-            const allSections = document.querySelectorAll('.section');
-            
-            allSections.forEach((section) => {
-                const sectionData = {
-                    title: section.querySelector('h2').innerText,
-                    images: Array.from(section.querySelectorAll('.image-box img')).map(img => img.src),
-                };
-                sections.push(sectionData);
-            });
-            
-            localStorage.setItem('sections', JSON.stringify(sections));
-        }
     </script>
 </body>
 </html>
