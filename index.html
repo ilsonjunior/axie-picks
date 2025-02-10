@@ -6,6 +6,7 @@
     <title>Axie Pick and Bansss</title>
     <link rel="icon" href="SPG-FROG.png" type="image/x-icon">
     <style>
+
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -22,24 +23,39 @@
         }
 
         #mainContainer {
-            max-width: 1200px; /* Limita a largura máxima do container */
-            margin-top: 5px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            flex-wrap: wrap; /* Permite que as seções quebrem de linha quando necessário */
+            justify-content: center;
             gap: 20px;
+            max-width: 1200px;
+            margin-top: 5px;
         }
 
         .section {
-            padding: 5px;
-            background-color: rgba(36, 28, 61, 0.8); /* Fundo com opacidade */
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            width: 95%;
-            max-width: 80%;
-            box-sizing: content-box;
+            width: 48%;
+            max-width: none;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
             align-items: center;
+            background-color: rgba(36, 28, 61, 0.8); /* Fundo com opacidade */
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            box-sizing: border-box;
         }
+
+        @media (max-width: 768px) {
+            .section {
+                width: 100%; /* Seções ocupam 100% da largura em telas pequenas */
+            }
+
+            .button-group {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+
 
         .image-box {
             display: flex;
@@ -57,7 +73,7 @@
 
         .image-container {
             position: relative;
-            width: calc(100% / 7 - 10px);
+            width: calc(100% / 5 - 10px);
             margin-bottom: 10px;
             overflow: hidden;
             border-radius: 10px;
@@ -65,9 +81,9 @@
         }
 
         .image-box img {
-            width: 95%;
-            height: 95%;
-            border-radius: 10px;
+            width: 90%;
+            height: 90%;
+            border-radius: 5px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
             transition: transform 0.3s, background-color 0.3s;
@@ -151,6 +167,32 @@
             border-color: #ffeb3b;
         }
 
+        h2:focus {
+            outline: none;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap; /* Permite que os botões se ajustem caso o espaço seja pequeno */
+            justify-content: center; /* Centraliza os botões */
+            gap: 10px; /* Espaço entre os botões */
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .section input[type="text"] {
+            width: 90%; /* Faz o input ocupar quase toda a largura da seção */
+            max-width: 600px; /* Limita para não ficar muito grande em telas grandes */
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #fff;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-align: center;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
     </style>
 
 </head>
@@ -178,54 +220,92 @@
         window.db = getDatabase(app);
         window.sectionsRef = ref(db, "sections");
 
+        window.isUpdatingFromFirebase = false; // Flag para evitar loop infinito
+        window.firebaseSet = set;
+        window.firebaseRef = ref;
+
         onValue(sectionsRef, (snapshot) => {
+            if (window.isUpdatingFromFirebase) return; // 🔥 Evita atualização indesejada
+
+            window.isUpdatingFromFirebase = true;
             const data = snapshot.val();
-            document.getElementById("mainContainer").innerHTML = "";
-            window.sectionCount = 0;
-            for (let key in data) {
-                window.sectionCount++;
-                adicionarNovaSecao(data[key].title, data[key].images, window.sectionCount, key);
+            const mainContainer = document.getElementById("mainContainer");
+
+            // 🔥 Salva a posição da rolagem antes de atualizar o DOM
+            const scrollY = window.scrollY;
+
+            // Remove todas as seções antes de recriar na ordem correta
+            while (mainContainer.firstChild) {
+                mainContainer.removeChild(mainContainer.firstChild);
             }
+
+            window.sectionCount = 0;
+
+            if (data) {
+                // Converte os objetos em um array e ordena pelo campo "order"
+                const orderedSections = Object.entries(data)
+                    .map(([key, value]) => ({ key, ...value }))
+                    .sort((a, b) => a.order - b.order);
+
+                orderedSections.forEach((sectionData) => {
+                    window.sectionCount++;
+                    adicionarNovaSecao(sectionData.title, sectionData.images, window.sectionCount, sectionData.key);
+                });
+            }
+
+            setTimeout(() => {
+                window.isUpdatingFromFirebase = false; // 🔥 Evita bloqueio permanente
+            }, 300);
+
+            window.scrollTo(0, scrollY); // 🔥 Restaura a posição da rolagem após a atualização
         });
 
+
         window.salvarSecoes = function() {
+            if (isUpdatingFromFirebase) return; // Se estamos atualizando do Firebase, não salva
+
             const sections = {};
-            const allSections = document.querySelectorAll('.section');
-            
-            allSections.forEach((section) => {
+            document.querySelectorAll('.section').forEach((section, index) => {
                 const key = section.dataset.key || firebasePush(ref(db, "sections")).key; // Gera chave única
+                
                 sections[key] = {
                     title: section.querySelector('h2').innerText,
+                    order: index, // Salva a posição da seção
                     images: Array.from(section.querySelectorAll('.image-box img')).map(img => ({
                         src: img.src,
-                        clicked: img.classList.contains('clicked'), // Salva o estado de "clicked"
-                        green: img.classList.contains('green') // Salva o estado de "green"
+                        clicked: img.classList.contains('clicked'),
+                        green: img.classList.contains('green')
                     }))
                 };
-                section.dataset.key = key; // Armazena a chave para futuras atualizações
+
+                section.dataset.key = key; // Atualiza o atributo "data-key"
             });
 
-            Object.keys(sections).forEach(key => {
-                set(ref(db, "sections/" + key), sections[key]);
-            });
-        }
+            set(ref(db, "sections"), sections)
+                .then(() => console.log("Seções salvas com sucesso!"))
+                .catch(error => console.error("Erro ao salvar seções:", error));
+        };
 
         window.apagarSecao = function(sectionNumber) {
-        const secao = document.getElementById('section' + sectionNumber);
-        const key = secao.dataset.key; // Obtém a chave da seção no Firebase
+            const secao = document.getElementById('section' + sectionNumber);
+            if (!secao) return; // Se a seção não existe, sai da função
 
-        if (key) {
-            // Remove a seção do Firebase
-            const secaoRef = ref(db, `sections/${key}`);
-            remove(secaoRef).then(() => {
-                console.log("Seção removida do Firebase com sucesso!");
-            }).catch((error) => {
-                console.error("Erro ao remover a seção do Firebase:", error);
-            });
-        }
+            const key = secao.dataset.key; // Obtém a chave da seção no Firebase
 
-        secao.remove(); // Remove a seção do DOM
-    }
+            if (key) {
+                // Remove a seção do Firebase
+                const secaoRef = ref(db, `sections/${key}`);
+                remove(secaoRef).then(() => {
+                    console.log("Seção removida do Firebase com sucesso!");
+                }).catch((error) => {
+                    console.error("Erro ao remover a seção do Firebase:", error);
+                });
+            }
+
+            secao.remove(); // Remove a seção do DOM
+            salvarSecoes();
+        };
+
 
     </script>
 
@@ -242,27 +322,27 @@
 
             novaSecao.innerHTML = `
                 <h2 id="meuTitulo${sectionCount}" contenteditable="true">${title}</h2>
-                <input type="text" id="imageIds${sectionCount}" placeholder="list of ids separated by commas">
-                <button onclick="mostrarImagens(${sectionCount})">Show</button>
-                <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
+                <input type="text" id="imageIds${sectionCount}" placeholder="List of IDs separated by commas"
+                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); mostrarImagens(${sectionCount}); }">
                 <div class="image-box" id="imageContainer${sectionCount}"></div>
                 <div id="imageIdsDisplay${sectionCount}" style="margin-top: 10px; color: white;"></div>
-                <button onclick="moverParaCima(${sectionCount})">&lt;</button>
-                <button onclick="moverParaBaixo(${sectionCount})">&gt;</button>
-                <button onclick="minimizarSecao(${sectionCount})">_</button>
-                <button onclick="apagarSecao(${sectionCount})">X</button>
+                <div class="button-group">
+                    <button onclick="moverParaCima(${sectionCount})">⬆</button>
+                    <button onclick="moverParaBaixo(${sectionCount})">⬇</button>
+                    <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
+                    <button onclick="apagarSecao(${sectionCount})">❌</button>
+                </div>
             `;
 
             container.appendChild(novaSecao);
 
-            // Adiciona o evento de escuta para o título
+            // Adiciona evento para salvar o título ao pressionar Enter
             const titulo = document.getElementById(`meuTitulo${sectionCount}`);
             titulo.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') {
-                    event.preventDefault(); // Evita a quebra de linha
-                    const novoTitulo = titulo.innerText.trim(); // Obtém o novo título
-                    titulo.innerText = novoTitulo; // Atualiza o título
-                    salvarSecoes(); // Salva as seções quando "Enter" é pressionado
+                    event.preventDefault();
+                    titulo.innerText = titulo.innerText.trim();
+                    salvarSecoes();
                 }
             });
 
@@ -275,14 +355,25 @@
                 img.src = image.src;
                 if (image.clicked) img.classList.add('clicked'); // Restaura o estado de "clicked"
                 if (image.green) img.classList.add('green'); // Restaura o estado de "green"
-                img.onclick = function() {
+                img.onclick = function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    // Remover a classe 'green' antes de adicionar 'clicked'
+                    this.classList.remove('green');
+                    
                     this.classList.toggle('clicked');
-                    salvarSecoes(); // Salva o estado da imagem
+                    salvarSecoes();
                 };
                 img.oncontextmenu = function(event) {
-                    event.preventDefault(); // Evita o menu de contexto padrão
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    // Remover a classe 'clicked' antes de adicionar 'green'
+                    this.classList.remove('clicked');
+                    
                     this.classList.toggle('green');
-                    salvarSecoes(); // Salva o estado da imagem
+                    salvarSecoes();
                 };
                 
                 const deleteButton = document.createElement('button');
@@ -290,8 +381,8 @@
                 deleteButton.classList.add('delete-button');
                 deleteButton.onclick = function() {
                     imageContainer.removeChild(imageWrapper);
-                    atualizarIdsDisplay(sectionNumber);
                     salvarSecoes();
+                    atualizarIdsDisplay(sectionNumber);
                 };
                 
                 imageWrapper.appendChild(img);
@@ -305,44 +396,78 @@
             salvarSecoes();
         }
 
-        function mostrarImagens(sectionNumber) {
-            const inputField = document.getElementById('imageIds' + sectionNumber);
-            const ids = inputField.value.split(',');
-            const container = document.getElementById('imageContainer' + sectionNumber);
-            
-            ids.forEach(id => {
-                const trimmedId = id.trim();
-                if (!trimmedId) return;
-                
-                const imgUrl = `https://axiecdn.axieinfinity.com/axies/${trimmedId}/axie/axie-full-transparent.png`;
-                
-                const imageWrapper = document.createElement('div');
-                imageWrapper.classList.add('image-container');
-                
-                const img = document.createElement('img');
-                img.src = imgUrl;
-                img.alt = `Imagem ${trimmedId}`;
-                img.onclick = function() {
-                    this.classList.toggle('clicked');
-                };
-                
-                const deleteButton = document.createElement('button');
-                deleteButton.innerText = 'X';
-                deleteButton.classList.add('delete-button');
-                deleteButton.onclick = function() {
+        function criarImagem(src, containerId) {
+            const imageWrapper = document.createElement('div');
+            imageWrapper.classList.add('image-container');
+
+            const img = document.createElement('img');
+            img.src = src;
+
+            img.onclick = function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                img.classList.toggle('clicked');
+                img.classList.remove('green');
+                salvarSecoes();
+            };
+
+            img.oncontextmenu = function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                img.classList.toggle('green');
+                img.classList.remove('clicked');
+                salvarSecoes();
+            };
+
+            const deleteButton = document.createElement('button');
+            deleteButton.innerText = 'X';
+            deleteButton.classList.add('delete-button');
+            deleteButton.onclick = function() {
+                const container = document.getElementById(containerId);
+                if (container) {
                     container.removeChild(imageWrapper);
                     atualizarIdsDisplay(sectionNumber);
-                };
-                
-                imageWrapper.appendChild(img);
-                imageWrapper.appendChild(deleteButton);
-                container.appendChild(imageWrapper);
+                    salvarSecoes();
+                }
+            };
+
+            imageWrapper.appendChild(img);
+            imageWrapper.appendChild(deleteButton);
+            return imageWrapper;
+        }
+
+        function mostrarImagens(sectionNumber) {
+            const inputField = document.getElementById('imageIds' + sectionNumber);
+            
+            // Divide os IDs, removendo espaços e tabulações extras
+            const ids = inputField.value.trim().split(/[\s,]+/).filter(id => id !== '');
+            
+            const container = document.getElementById('imageContainer' + sectionNumber);
+
+            // Obter os IDs já existentes
+            const existingIds = new Set(
+                Array.from(container.querySelectorAll('img')).map(img => {
+                    const src = img.src;
+                    const match = src.match(/axies\/(\d+)\/axie/);
+                    return match ? match[1] : null;
+                }).filter(id => id !== null)
+            );
+
+            ids.forEach(id => {
+                if (!existingIds.has(id)) { // Adiciona apenas se não existir
+                    const imgUrl = `https://axiecdn.axieinfinity.com/axies/${id}/axie/axie-full-transparent.png`;
+                    container.appendChild(criarImagem(imgUrl, 'imageContainer' + sectionNumber));
+                    existingIds.add(id); // Adiciona o ID ao conjunto
+                } else {
+                    console.warn(`Imagem com ID ${id} já existe e não será adicionada.`);
+                }
             });
 
-            inputField.value = '';
-            atualizarIdsDisplay(sectionNumber);atualizarIdsDisplay(sectionNumber);
+            inputField.value = ''; // Limpa o campo de entrada após processar os IDs
+            atualizarIdsDisplay(sectionNumber);
             salvarSecoes();
         }
+
 
         function apagarTodasImagens(sectionNumber) {
             document.getElementById('imageContainer' + sectionNumber).innerHTML = '';
@@ -352,6 +477,8 @@
 
         function atualizarIdsDisplay(sectionNumber) {
             const container = document.getElementById('imageContainer' + sectionNumber);
+            if (!container) return; // Se a seção foi removida, sai da função
+
             const images = container.querySelectorAll('img');
             const ids = Array.from(images).map(img => {
                 const src = img.src;
@@ -360,28 +487,88 @@
             }).filter(id => id !== null);
 
             const idsDisplay = document.getElementById('imageIdsDisplay' + sectionNumber);
-            idsDisplay.innerText = `IDs: ${ids.join(', ')}`;
+            if (idsDisplay) { // Garante que o elemento ainda existe antes de acessar `innerText`
+                idsDisplay.innerText = `IDs: ${ids.join(', ')}`;
+            }
         }
+
+        function atualizarOrdemNoFirebase() {
+            if (window.isUpdatingFromFirebase) return; // Evita loop infinito
+
+            const sections = {};
+            let index = 0;
+
+            document.querySelectorAll('.section').forEach(section => {
+                const key = section.dataset.key;
+                if (key) {
+                    sections[key] = {
+                        title: section.querySelector('h2').innerText,
+                        order: index++, // 🔥 Atualiza a posição correta no Firebase
+                        images: Array.from(section.querySelectorAll('.image-box img')).map(img => ({
+                            src: img.src,
+                            clicked: img.classList.contains('clicked'),
+                            green: img.classList.contains('green')
+                        }))
+                    };
+                }
+            });
+
+            // 🔥 Bloqueia atualizações enquanto salvamos no Firebase
+            window.isUpdatingFromFirebase = true;
+
+            window.firebaseSet(window.firebaseRef(window.db, "sections"), sections)
+                .then(() => {
+                    console.log("✅ Nova ordem salva no Firebase!");
+
+                    // 🔥 Aguarda 300ms antes de permitir novas atualizações
+                    setTimeout(() => {
+                        window.isUpdatingFromFirebase = false;
+                    }, 300);
+                })
+                .catch(error => {
+                    console.error("❌ Erro ao salvar ordem das seções:", error);
+                    window.isUpdatingFromFirebase = false;
+                });
+        }
+
+
 
         function moverParaCima(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
             const prevSecao = secao.previousElementSibling;
-            
-            if (prevSecao) {
-                secao.parentNode.insertBefore(secao, prevSecao);
-                salvarSecoes();
-            }
+
+            if (!prevSecao) return; // Se já está no topo, não faz nada
+
+            // Move a seção para cima no DOM
+            secao.parentNode.insertBefore(secao, prevSecao);
+
+            // 🔥 Salva imediatamente no Firebase
+            atualizarOrdemNoFirebase();
         }
 
         function moverParaBaixo(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
             const nextSecao = secao.nextElementSibling;
-            
-            if (nextSecao) {
-                secao.parentNode.insertBefore(nextSecao, secao);
-                salvarSecoes();
+
+            if (!nextSecao) return; // Se já está na última posição, não faz nada
+
+            // 🔥 Verifica se há um próximo irmão antes de mover
+            if (nextSecao.nextSibling) {
+                secao.parentNode.insertBefore(nextSecao.nextSibling, secao);
+            } else {
+                // 🔥 Se for o último, move para o final da lista
+                secao.parentNode.appendChild(secao);
             }
+
+            // 🔥 Salva imediatamente no Firebase
+            atualizarOrdemNoFirebase();
         }
+
+
+
+
+
+
 
         function minimizarSecao(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
