@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axie Pick and Bans</title>
+    <title>Axie Pick and Bansss</title>
     <link rel="icon" href="SPG-FROG.png" type="image/x-icon">
     <style>
 
@@ -32,12 +32,14 @@
         }
 
         .section {
-            width: calc(50% - 20px); /* Cada seção ocupa 50% da largura */
+            width: 48%;
+            max-width: none;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
             background-color: rgba(36, 28, 61, 0.8); /* Fundo com opacidade */
-            border-radius: 10px;
+            border-radius: 5px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 10px;
             box-sizing: border-box;
@@ -79,9 +81,9 @@
         }
 
         .image-box img {
-            width: 95%;
-            height: 95%;
-            border-radius: 10px;
+            width: 90%;
+            height: 90%;
+            border-radius: 5px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
             transition: transform 0.3s, background-color 0.3s;
@@ -218,12 +220,14 @@
         window.db = getDatabase(app);
         window.sectionsRef = ref(db, "sections");
 
-        let isUpdatingFromFirebase = false; // Flag para evitar loop infinito
+        window.isUpdatingFromFirebase = false; // Flag para evitar loop infinito
+        window.firebaseSet = set;
+        window.firebaseRef = ref;
 
         onValue(sectionsRef, (snapshot) => {
-            if (isUpdatingFromFirebase) return;
+            if (window.isUpdatingFromFirebase) return; // 🔥 Evita atualização indesejada
 
-            isUpdatingFromFirebase = true;
+            window.isUpdatingFromFirebase = true;
             const data = snapshot.val();
             const mainContainer = document.getElementById("mainContainer");
 
@@ -249,9 +253,13 @@
                 });
             }
 
-            isUpdatingFromFirebase = false;
+            setTimeout(() => {
+                window.isUpdatingFromFirebase = false; // 🔥 Evita bloqueio permanente
+            }, 300);
+
             window.scrollTo(0, scrollY); // 🔥 Restaura a posição da rolagem após a atualização
         });
+
 
         window.salvarSecoes = function() {
             if (isUpdatingFromFirebase) return; // Se estamos atualizando do Firebase, não salva
@@ -316,15 +324,12 @@
                 <h2 id="meuTitulo${sectionCount}" contenteditable="true">${title}</h2>
                 <input type="text" id="imageIds${sectionCount}" placeholder="List of IDs separated by commas"
                     onkeydown="if(event.key === 'Enter') { event.preventDefault(); mostrarImagens(${sectionCount}); }">
-                <div class="button-group">
-                    <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
-                </div>
                 <div class="image-box" id="imageContainer${sectionCount}"></div>
                 <div id="imageIdsDisplay${sectionCount}" style="margin-top: 10px; color: white;"></div>
                 <div class="button-group">
                     <button onclick="moverParaCima(${sectionCount})">⬆</button>
                     <button onclick="moverParaBaixo(${sectionCount})">⬇</button>
-                    <button onclick="minimizarSecao(${sectionCount})">🔽</button>
+                    <button onclick="apagarTodasImagens(${sectionCount})">Delete All</button>
                     <button onclick="apagarSecao(${sectionCount})">❌</button>
                 </div>
             `;
@@ -433,7 +438,10 @@
 
         function mostrarImagens(sectionNumber) {
             const inputField = document.getElementById('imageIds' + sectionNumber);
-            const ids = inputField.value.split(/,\s*/).filter(id => id !== '');
+            
+            // Divide os IDs, removendo espaços e tabulações extras
+            const ids = inputField.value.trim().split(/[\s,]+/).filter(id => id !== '');
+            
             const container = document.getElementById('imageContainer' + sectionNumber);
 
             // Obter os IDs já existentes
@@ -455,10 +463,11 @@
                 }
             });
 
-            inputField.value = '';
+            inputField.value = ''; // Limpa o campo de entrada após processar os IDs
             atualizarIdsDisplay(sectionNumber);
             salvarSecoes();
         }
+
 
         function apagarTodasImagens(sectionNumber) {
             document.getElementById('imageContainer' + sectionNumber).innerHTML = '';
@@ -484,10 +493,10 @@
         }
 
         function atualizarOrdemNoFirebase() {
-            if (isUpdatingFromFirebase) return; // Evita loop infinito
+            if (window.isUpdatingFromFirebase) return; // Evita loop infinito
 
             const sections = {};
-            let index = 0; // 🔥 Garante que os índices serão atualizados corretamente!
+            let index = 0;
 
             document.querySelectorAll('.section').forEach(section => {
                 const key = section.dataset.key;
@@ -504,11 +513,25 @@
                 }
             });
 
-            // 🔥 Atualiza Firebase com a nova ordem correta!
-            set(ref(db, "sections"), sections)
-                .then(() => console.log("✅ Nova ordem salva no Firebase!"))
-                .catch(error => console.error("❌ Erro ao salvar ordem das seções:", error));
+            // 🔥 Bloqueia atualizações enquanto salvamos no Firebase
+            window.isUpdatingFromFirebase = true;
+
+            window.firebaseSet(window.firebaseRef(window.db, "sections"), sections)
+                .then(() => {
+                    console.log("✅ Nova ordem salva no Firebase!");
+
+                    // 🔥 Aguarda 300ms antes de permitir novas atualizações
+                    setTimeout(() => {
+                        window.isUpdatingFromFirebase = false;
+                    }, 300);
+                })
+                .catch(error => {
+                    console.error("❌ Erro ao salvar ordem das seções:", error);
+                    window.isUpdatingFromFirebase = false;
+                });
         }
+
+
 
         function moverParaCima(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
@@ -516,9 +539,11 @@
 
             if (!prevSecao) return; // Se já está no topo, não faz nada
 
+            // Move a seção para cima no DOM
             secao.parentNode.insertBefore(secao, prevSecao);
-            
-            setTimeout(atualizarOrdemNoFirebase, 300); // 🔥 Atualiza Firebase após pequeno delay
+
+            // 🔥 Salva imediatamente no Firebase
+            atualizarOrdemNoFirebase();
         }
 
         function moverParaBaixo(sectionNumber) {
@@ -527,10 +552,20 @@
 
             if (!nextSecao) return; // Se já está na última posição, não faz nada
 
-            secao.parentNode.insertBefore(nextSecao.nextSibling, secao);
+            // 🔥 Verifica se há um próximo irmão antes de mover
+            if (nextSecao.nextSibling) {
+                secao.parentNode.insertBefore(nextSecao.nextSibling, secao);
+            } else {
+                // 🔥 Se for o último, move para o final da lista
+                secao.parentNode.appendChild(secao);
+            }
 
-            setTimeout(atualizarOrdemNoFirebase, 300); // 🔥 Atualiza Firebase após pequeno delay
+            // 🔥 Salva imediatamente no Firebase
+            atualizarOrdemNoFirebase();
         }
+
+
+
 
 
 
