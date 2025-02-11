@@ -2,7 +2,7 @@ import('node-fetch').then(({ default: fetch }) => {
     require('dotenv').config();
 
     const API_KEY = process.env.MORALIS_API_KEY;
-    const RONIN_ADDRESS = '0x130c5d0e94B992eca862eEdb5F80E6FD6a34202c';
+    const RONIN_ADDRESS = 'khedirah.ron';
     const CHAIN = 'ronin';
 
     async function getAxies() {
@@ -24,7 +24,7 @@ import('node-fetch').then(({ default: fetch }) => {
             const data = await response.json();
 
             // Filtra apenas os Axies
-            const axies = data.result.filter(nft => nft.token_address === '0x32950db2a7164ae833121501c797d79e7b79d74c').map(nft => Number(nft.token_id)).join(', ');
+            const axies = data.result;
 
             console.log(axies);
         } catch (error) {
@@ -34,3 +34,6 @@ import('node-fetch').then(({ default: fetch }) => {
 
     getAxies();
 });
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjA0MjQyMDBlLWM1ZGItNDk0Ny1hNmQyLTYxNWE4M2QwOTc2YiIsIm9yZ0lkIjoiNDMwNjA2IiwidXNlcklkIjoiNDQyOTQ0IiwidHlwZUlkIjoiMmIwOGI2MjEtZWQ5ZS00ZGM3LThjMzgtNDhjZDYyNjY0OGQxIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MzkyMTc4NzMsImV4cCI6NDg5NDk3Nzg3M30.dRIW1gOgbPpjkajRNQeaooVQ4dLw4GZH0hTIjat7pMU
