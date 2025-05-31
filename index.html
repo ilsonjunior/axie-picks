@@ -20,6 +20,7 @@
             min-height: 100vh;
             flex-direction: column;
             width: 100%;
+            visibility: hidden;
         }
 
         #mainContainer {
@@ -28,9 +29,47 @@
             justify-content: center;
             gap: 10px;
             max-width: none;
-            width: 90%;
+            width: 100%;
             margin-top: 5px;
         }
+
+        #loginSection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        #loginSection input, #loginSection button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            width: 250px;
+            box-sizing: border-box;
+        }
+
+        #loginSection button {
+            background-color: #3db52d;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #loginSection button:hover {
+            background-color: #28a745;
+        }
+
+        #loginError {
+            margin-top: 10px;
+            color: #ff4d4d;
+        }
+
 
         .section {
             width: 48%;
@@ -105,17 +144,18 @@
         .delete-button {
             position: absolute;
             top: 3px;
-            right: 6px;
-            background-color: #3b2d2d;
+            right: 10px;
+            background-color: #2d383b;
             color: white;
             border: none;
             cursor: pointer;
             font-size: 15px;
-            padding: 2px 4px;
+            font-weight: bold;
+            padding: 2px 6px;
             border-radius: 50%;
             transition: background-color 0.3s;
-            border-color: black;
-            border-radius: 5px;
+            border-color: rgb(255, 255, 255);
+            border-radius: 10px;
         }
 
         .delete-button:hover {
@@ -201,13 +241,23 @@
 </head>
 <body>
     
-    <div id="mainContainer"></div>
-    
-    <button onclick="adicionarNovaSecao()">ADD</button>
+    <div id="loginSection">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Senha">
+        <button id="loginBtn">Entrar</button>
+        <p id="loginError" style="color: red;"></p>
+    </div>
+
+    <div id="mainContent" style="display: none;">
+        <div id="mainContainer"></div>
+        <button onclick="adicionarNovaSecao()">ADD</button>
+    </div>
 
     <script type="module"> 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, push as firebasePush, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getDatabase, ref, onValue, set, push as firebasePush, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAbQhL5c8OiV4mnyxtKCxJNlUeeVUXnl6E",
@@ -219,96 +269,124 @@
             appId: "1:658160083269:web:6e64583b9996fa6b221e2c"
         };
 
-        window.app = initializeApp(firebaseConfig);
-        window.db = getDatabase(app);
-        window.sectionsRef = ref(db, "sections");
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
 
-        window.isUpdatingFromFirebase = false; // Flag para evitar loop infinito
-        window.firebaseSet = set;
-        window.firebaseRef = ref;
+        const emailAutorizado = "sapegato_spg@proton.me";
 
-        onValue(sectionsRef, (snapshot) => {
-            if (window.isUpdatingFromFirebase) return; // 🔥 Evita atualização indesejada
+        const loginSection = document.getElementById("loginSection");
+        const mainContent = document.getElementById("mainContent");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const loginBtn = document.getElementById("loginBtn");
+        const loginError = document.getElementById("loginError");
 
-            window.isUpdatingFromFirebase = true;
-            const data = snapshot.val();
+        onAuthStateChanged(auth, (user) => {
+            if (user && user.email === emailAutorizado) {
+                loginSection.style.display = "none";
+                mainContent.style.display = "block";
+                iniciarApp();
+            } else {
+                loginSection.style.display = "flex";
+                mainContent.style.display = "none";
+            }
+            document.body.style.visibility = "visible";
+        });
+
+        loginBtn.addEventListener("click", () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .catch((error) => {
+                loginError.textContent = "Erro ao logar: " + error.message;
+                });
+        });
+
+        function iniciarApp() {
+            window.app = app;
+            window.db = db;
+            window.firebaseSet = set;
+            window.firebaseRef = ref;
+            window.firebasePush = firebasePush;
+            window.firebaseRemove = remove;
+
             const mainContainer = document.getElementById("mainContainer");
+            const sectionsRef = ref(db, "sections");
+            let sectionCount = 0;
+            let isUpdatingFromFirebase = false;
 
-            // 🔥 Salva a posição da rolagem antes de atualizar o DOM
+            onValue(sectionsRef, (snapshot) => {
+            if (isUpdatingFromFirebase) return;
+            isUpdatingFromFirebase = true;
+            const data = snapshot.val();
+
             const scrollY = window.scrollY;
-
-            // Remove todas as seções antes de recriar na ordem correta
             while (mainContainer.firstChild) {
                 mainContainer.removeChild(mainContainer.firstChild);
             }
 
-            window.sectionCount = 0;
-
+            sectionCount = 0;
             if (data) {
-                // Converte os objetos em um array e ordena pelo campo "order"
                 const orderedSections = Object.entries(data)
-                    .map(([key, value]) => ({ key, ...value }))
-                    .sort((a, b) => a.order - b.order);
+                .map(([key, value]) => ({ key, ...value }))
+                .sort((a, b) => a.order - b.order);
 
                 orderedSections.forEach((sectionData) => {
-                    window.sectionCount++;
-                    adicionarNovaSecao(sectionData.title, sectionData.images, window.sectionCount, sectionData.key);
+                sectionCount++;
+                adicionarNovaSecao(sectionData.title, sectionData.images, sectionCount, sectionData.key);
                 });
             }
 
             setTimeout(() => {
-                window.isUpdatingFromFirebase = false; // 🔥 Evita bloqueio permanente
+                isUpdatingFromFirebase = false;
             }, 300);
 
-            window.scrollTo(0, scrollY); // 🔥 Restaura a posição da rolagem após a atualização
-        });
-
-
-        window.salvarSecoes = function() {
-            if (isUpdatingFromFirebase) return; // Se estamos atualizando do Firebase, não salva
-
-            const sections = {};
-            document.querySelectorAll('.section').forEach((section, index) => {
-                const key = section.dataset.key || firebasePush(ref(db, "sections")).key; // Gera chave única
-                
-                sections[key] = {
-                    title: section.querySelector('h2').innerText,
-                    order: index, // Salva a posição da seção
-                    images: Array.from(section.querySelectorAll('.image-box img')).map(img => ({
-                        src: img.src,
-                        clicked: img.classList.contains('clicked'),
-                        green: img.classList.contains('green')
-                    }))
-                };
-
-                section.dataset.key = key; // Atualiza o atributo "data-key"
+            window.scrollTo(0, scrollY);
             });
 
+            window.salvarSecoes = function () {
+            if (isUpdatingFromFirebase) return;
+            const sections = {};
+            document.querySelectorAll('.section').forEach((section, index) => {
+                const key = section.dataset.key || firebasePush(ref(db, "sections")).key;
+                sections[key] = {
+                title: section.querySelector('h2').innerText,
+                order: index,
+                images: Array.from(section.querySelectorAll('.image-box img')).map(img => ({
+                    src: img.src,
+                    clicked: img.classList.contains('clicked'),
+                    green: img.classList.contains('green')
+                }))
+                };
+                section.dataset.key = key;
+            });
             set(ref(db, "sections"), sections)
                 .then(() => console.log("Seções salvas com sucesso!"))
                 .catch(error => console.error("Erro ao salvar seções:", error));
-        };
+            };
 
-        window.apagarSecao = function(sectionNumber) {
-            const secao = document.getElementById('section' + sectionNumber);
-            if (!secao) return; // Se a seção não existe, sai da função
+            window.apagarSecao = function(sectionNumber) {
+                const secao = document.getElementById('section' + sectionNumber);
+                if (!secao) return; // Se a seção não existe, sai da função
 
-            const key = secao.dataset.key; // Obtém a chave da seção no Firebase
+                const key = secao.dataset.key; // Obtém a chave da seção no Firebase
 
-            if (key) {
-                // Remove a seção do Firebase
-                const secaoRef = ref(db, `sections/${key}`);
-                remove(secaoRef).then(() => {
-                    console.log("Seção removida do Firebase com sucesso!");
-                }).catch((error) => {
-                    console.error("Erro ao remover a seção do Firebase:", error);
-                });
-            }
+                if (key) {
+                    // Remove a seção do Firebase
+                    const secaoRef = ref(db, `sections/${key}`);
+                    remove(secaoRef).then(() => {
+                        console.log("Seção removida do Firebase com sucesso!");
+                    }).catch((error) => {
+                        console.error("Erro ao remover a seção do Firebase:", error);
+                    });
+                }
 
-            secao.remove(); // Remove a seção do DOM
-            salvarSecoes();
-        };
-
+                secao.remove(); // Remove a seção do DOM
+                salvarSecoes();
+            };
+        }
 
     </script>
 
@@ -508,7 +586,6 @@
             salvarSecoes();
         }
 
-
         function apagarTodasImagens(sectionNumber) {
             document.getElementById('imageContainer' + sectionNumber).innerHTML = '';
             atualizarIdsDisplay(sectionNumber);
@@ -571,8 +648,6 @@
                 });
         }
 
-
-
         function moverParaCima(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
             const prevSecao = secao.previousElementSibling;
@@ -603,12 +678,6 @@
             // 🔥 Salva imediatamente no Firebase
             atualizarOrdemNoFirebase();
         }
-
-
-
-
-
-
 
         function minimizarSecao(sectionNumber) {
             const secao = document.getElementById('section' + sectionNumber);
